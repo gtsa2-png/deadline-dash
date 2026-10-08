@@ -7,38 +7,41 @@ render_console.py) or from a test -- either way it behaves identically,
 because it only ever looks at the GameState it's given.
 """
 
+import random
+
+from typing import Final
 from dataclasses import replace
 
-from .models import Essay, GameState, GameStatus, Grass
+from .models import Essay, GameState, GameStatus, Grass, ObstacleTheme
 from .obstacles import THEMES
 
-FIXED_DT = 1.0 / 60.0
+FIXED_DT: Final[float] = 1.0 / 60.0
 
-SCREEN_WIDTH = 400.0
-SCREEN_HEIGHT = 600.0
-GROUND_Y = SCREEN_HEIGHT - 20.0
+SCREEN_WIDTH: Final[float] = 400.0
+SCREEN_HEIGHT: Final[float] = 600.0
+GROUND_Y: Final[float] = SCREEN_HEIGHT - 20.0
 
-ESSAY_X = 80.0
-ESSAY_SIZE = 24.0
-GRAVITY = 950.0  # px/s^2
-FLAP_VELOCITY = -260.0  # px/s, negative is upward
+ESSAY_X: Final[float] = 80.0
+ESSAY_SIZE: Final[float] = 24.0
+GRAVITY: Final[float] = 950.0  # px/s^2
+FLAP_VELOCITY: Final[float] = -260.0  # px/s, negative is upward
 
-GRASS_WIDTH = 60.0
-GRASS_GAP = 150.0
-GRASS_SPACING = 230.0
-GRASS_SPEED = 140.0  # px/s
-NUM_GRASS = 40  # pre-generated up front; see initial_state()
+GRASS_WIDTH: Final[float] = 60.0
+GRASS_GAP: Final[float] = 150.0
+GRASS_SPACING: Final[float] = 230.0
+GRASS_SPEED: Final[float] = 140.0  # px/s
+NUM_GRASS: Final[int] = 40  # pre-generated up front; see initial_state()
 
 
-def initial_state(rng, num_grass=NUM_GRASS):
+def initial_state(rng: random.Random, num_grass: int = NUM_GRASS) -> GameState:
     """A fresh game. The whole course is generated here, once, from `rng`
     -- step() itself never touches randomness, which is what keeps it
     exactly reproducible given the same starting state and flap sequence."""
-    grass = []
-    x = SCREEN_WIDTH + 100.0
+    grass: list = []
+    x: float = SCREEN_WIDTH + 100.0
     for _ in range(num_grass):
-        gap_y = rng.uniform(GRASS_GAP, GROUND_Y - GRASS_GAP)
-        theme = THEMES[0]
+        gap_y: float = rng.uniform(GRASS_GAP, GROUND_Y - GRASS_GAP)
+        theme: ObstacleTheme = THEMES[0]
         grass.append(Grass(x=x, gap_y=gap_y, gap_height=GRASS_GAP, theme=theme.name))
         x += GRASS_SPACING
     return GameState(
@@ -49,24 +52,24 @@ def initial_state(rng, num_grass=NUM_GRASS):
     )
 
 
-def apply_gravity(essay, flap):
+def apply_gravity(essay: Essay, flap: bool) -> Essay:
     """One tick of vertical physics. A flap overrides velocity outright;
     otherwise gravity accelerates the essay downward."""
-    velocity = FLAP_VELOCITY if flap else essay.velocity + GRAVITY * FIXED_DT
+    velocity: float = FLAP_VELOCITY if flap else essay.velocity + GRAVITY * FIXED_DT
     return Essay(y=essay.y + velocity * FIXED_DT, velocity=velocity)
 
 
-def advance_grass(grass):
+def advance_grass(grass: tuple[Grass, ...]) -> tuple[Grass, ...]:
     """Move every patch of grass left by one tick's worth of GRASS_SPEED."""
     return tuple(replace(g, x=g.x - GRASS_SPEED * FIXED_DT) for g in grass)
 
 
-def out_of_bounds(essay):
+def out_of_bounds(essay: Essay) -> bool:
     """True if the essay has hit the ground or flown off the top."""
     return essay.y < 0 or essay.y + ESSAY_SIZE >= GROUND_Y
 
 
-def collides(essay, grass):
+def collides(essay: Essay, grass: tuple[Grass, ...]) -> bool:
     """Axis-aligned bounding-box collision between the essay and any grass
     it currently overlaps horizontally. Deliberately not pixel-perfect
     collision: that would need image data inside this otherwise-pure
@@ -83,12 +86,12 @@ def collides(essay, grass):
     return False
 
 
-def score_passed_grass(grass, essay, score):
+def score_passed_grass(grass: tuple[Grass, ...], essay: Essay, score: int):
     """Mark any grass the essay has just fully passed as scored, and bump
     the score once per patch -- the `scored` flag is what stops a patch
     being counted twice."""
-    new_grass = []
-    new_score = score
+    new_grass: list[Grass] = []
+    new_score: int = score
     for patch in grass:
         if not patch.scored and patch.x + GRASS_WIDTH < ESSAY_X:
             new_grass.append(replace(patch, scored=True))
@@ -98,14 +101,14 @@ def score_passed_grass(grass, essay, score):
     return tuple(new_grass), new_score
 
 
-def step(state, flap):
+def step(state: GameState, flap: bool) -> GameState:
     """Advance the game by one fixed tick. Once CRASHED, step() is a no-op
     forever -- that's deliberate and tested (see test_crashed_state_is_terminal)."""
     if state.status is GameStatus.CRASHED:
         return state
 
-    essay = apply_gravity(state.essay, flap)
-    grass = advance_grass(state.grass)
+    essay: Essay = apply_gravity(state.essay, flap)
+    grass: tuple[Grass, ...] = advance_grass(state.grass)
 
     if collides(essay, grass) or out_of_bounds(essay):
         return replace(state, essay=essay, grass=grass, status=GameStatus.CRASHED)
