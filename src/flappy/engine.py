@@ -37,7 +37,7 @@ def initial_state(rng: random.Random, num_grass: int = NUM_GRASS) -> GameState:
     """A fresh game. The whole course is generated here, once, from `rng`
     -- step() itself never touches randomness, which is what keeps it
     exactly reproducible given the same starting state and flap sequence."""
-    grass: list = []
+    grass: list[Grass] = []
     x: float = SCREEN_WIDTH + 100.0
     for _ in range(num_grass):
         gap_y: float = rng.uniform(GRASS_GAP, GROUND_Y - GRASS_GAP)
@@ -86,7 +86,7 @@ def collides(essay: Essay, grass: tuple[Grass, ...]) -> bool:
     return False
 
 
-def score_passed_grass(grass: tuple[Grass, ...], essay: Essay, score: int):
+def score_passed_grass(grass: tuple[Grass, ...], essay: Essay, score: int) -> tuple[tuple[Grass, ...], int]:
     """Mark any grass the essay has just fully passed as scored, and bump
     the score once per patch -- the `scored` flag is what stops a patch
     being counted twice."""
