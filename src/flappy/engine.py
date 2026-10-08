@@ -52,7 +52,7 @@ def initial_state(rng, num_grass=NUM_GRASS):
 def apply_gravity(essay, flap):
     """One tick of vertical physics. A flap overrides velocity outright;
     otherwise gravity accelerates the essay downward."""
-    velocity = FLAP_VELOCITY if flap else essay.velocity - GRAVITY * FIXED_DT
+    velocity = FLAP_VELOCITY if flap else essay.velocity + GRAVITY * FIXED_DT
     return Essay(y=essay.y + velocity * FIXED_DT, velocity=velocity)
 
 
@@ -78,7 +78,7 @@ def collides(essay, grass):
             continue
         gap_top = patch.gap_y - patch.gap_height / 2
         gap_bottom = patch.gap_y + patch.gap_height / 2
-        if essay_top < gap_top and essay_bottom > gap_bottom:
+        if essay_top < gap_top or essay_bottom > gap_bottom:
             return True
     return False
 
